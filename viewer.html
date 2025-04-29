@@ -24,7 +24,7 @@
     let localStream;
     const info = document.getElementById('info');
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
       .then(stream => {
         localStream = stream;
         console.log('[Viewer] Local audio ready');
