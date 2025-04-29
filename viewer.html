@@ -12,7 +12,7 @@
   <video id="vid" autoplay playsinline style="width: 80vw; max-width: 600px;"></video>
 
   <script>
-    const peer = new Peer(undefined, { key: 'YOUR_PEERJS_KEY' });
+    const peer = new Peer(); // ← Use default PeerJS public server
     const videoEl = document.getElementById('vid');
     const input = document.getElementById('peer-id-input');
     const btn = document.getElementById('connect-btn');
@@ -20,10 +20,15 @@
     btn.onclick = () => {
       const remoteId = input.value.trim();
       if (!remoteId) return alert('Enter a valid Peer ID');
-      // call broadcaster, get their stream
+
       const call = peer.call(remoteId, null);
       call.on('stream', stream => {
         videoEl.srcObject = stream;
+      });
+
+      call.on('error', err => {
+        console.error('Call failed:', err);
+        alert('Could not connect: ' + err.message);
       });
     };
   </script>
