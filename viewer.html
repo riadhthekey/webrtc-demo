@@ -9,43 +9,39 @@
   <h1>Viewer</h1>
   <input id="peer-id-input" placeholder="Enter Broadcaster Peer ID">
   <button id="connect-btn">Connect</button>
-  <video id="vid" autoplay playsinline style="width: 80vw; max-width: 600px;"></video>
+  <!-- Add muted so browsers allow autoplay -->
+  <video id="vid" autoplay muted playsinline style="width: 80vw; max-width: 600px;"></video>
 
   <script>
     const peer = new Peer(); // default public PeerServer
-    const videoEl = document.getElementById('vid');
-    const input   = document.getElementById('peer-id-input');
-    const btn     = document.getElementById('connect-btn');
     let localStream;
 
-    // 1) Get at least an audio stream so peer.call() returns a Call object
+    // Grab a silent audio stream so we can initiate the call
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(stream => {
         localStream = stream;
-        console.log('Local audio stream ready');
+        console.log('Local audio ready');
       })
       .catch(err => {
-        console.error('Could not get local stream:', err);
-        alert('Warning: no local stream. Calls may fail.');
+        console.error('Microphone access failed:', err);
+        alert('Enable mic or reload');
       });
 
-    // 2) When you click Connect, call the broadcaster with your localStream
-    btn.onclick = () => {
-      const remoteId = input.value.trim();
+    document.getElementById('connect-btn').onclick = () => {
+      const remoteId = document.getElementById('peer-id-input').value.trim();
       if (!remoteId) return alert('Please enter a Peer ID');
-
-      if (!localStream) {
-        return alert('Local stream not ready. Please allow microphone access.');
-      }
+      if (!localStream) return alert('Mic not ready yet');
 
       const call = peer.call(remoteId, localStream);
-      if (!call) {
-        return alert('Call failed to start.');
-      }
+      if (!call) return alert('Call failed to start');
 
-      // 3) When we receive the remote stream, show it
-      call.on('stream', stream => {
-        videoEl.srcObject = stream;
+      call.on('stream', remoteStream => {
+        const videoEl = document.getElementById('vid');
+        videoEl.srcObject = remoteStream;
+        // ensure playback even if autoplay is blocked
+        videoEl.onloadedmetadata = () => {
+          videoEl.play().catch(e => console.warn('Play failed:', e));
+        };
       });
 
       call.on('error', err => {
