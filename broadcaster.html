@@ -3,36 +3,54 @@
 <head>
   <meta charset="utf-8">
   <title>WebRTC Broadcaster</title>
-  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <!-- load PeerJS first -->
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js?v=1"></script>
 </head>
 <body>
   <h1>Broadcaster</h1>
-  <video id="vid" autoplay muted playsinline style="width: 80vw; max-width: 600px;"></video>
+  <video id="vid" autoplay muted playsinline controls
+         style="width: 80vw; max-width: 600px; border:1px solid #333; background:#000;">
+  </video>
   <p>Your Peer ID: <span id="peer-id">...</span></p>
+  <p id="info"></p>
 
   <script>
-    const peer = new Peer(); // ← This uses the free PeerJS public server
+  window.onload = () => {
+    if (typeof Peer === 'undefined') {
+      return alert('PeerJS didn’t load. Check your script URL.');
+    }
+    const peer = new Peer();
     const videoEl = document.getElementById('vid');
     const peerIdEl = document.getElementById('peer-id');
+    const info    = document.getElementById('info');
 
+    // 1) Show our Peer ID
     peer.on('open', id => {
       peerIdEl.textContent = id;
-      console.log("Your Peer ID:", id);
+      console.log('[Broadcaster] Peer ID:', id);
     });
 
+    // 2) Grab camera+mic
     navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
         videoEl.srcObject = stream;
+        // log how many tracks we have
+        const vCount = stream.getVideoTracks().length;
+        const aCount = stream.getAudioTracks().length;
+        info.textContent = `Streaming: ${vCount} video track(s), ${aCount} audio track(s)`;
+        console.log('[Broadcaster] Local stream tracks:', vCount, 'video,', aCount, 'audio');
 
+        // 3) Answer calls with this stream
         peer.on('call', call => {
+          console.log('[Broadcaster] Received call from', call.peer);
           call.answer(stream);
-          console.log("Answered a call");
         });
       })
       .catch(err => {
-        console.error('Failed to get media:', err);
-        alert('Could not access camera: ' + err.message);
+        console.error('[Broadcaster] getUserMedia error:', err);
+        alert('Could not access camera/mic: ' + err.message);
       });
+  };
   </script>
 </body>
 </html>
