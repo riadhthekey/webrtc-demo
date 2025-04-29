@@ -12,23 +12,45 @@
   <video id="vid" autoplay playsinline style="width: 80vw; max-width: 600px;"></video>
 
   <script>
-    const peer = new Peer(); // ← Use default PeerJS public server
+    const peer = new Peer(); // default public PeerServer
     const videoEl = document.getElementById('vid');
-    const input = document.getElementById('peer-id-input');
-    const btn = document.getElementById('connect-btn');
+    const input   = document.getElementById('peer-id-input');
+    const btn     = document.getElementById('connect-btn');
+    let localStream;
 
+    // 1) Get at least an audio stream so peer.call() returns a Call object
+    navigator.mediaDevices.getUserMedia({ audio: true, video: false })
+      .then(stream => {
+        localStream = stream;
+        console.log('Local audio stream ready');
+      })
+      .catch(err => {
+        console.error('Could not get local stream:', err);
+        alert('Warning: no local stream. Calls may fail.');
+      });
+
+    // 2) When you click Connect, call the broadcaster with your localStream
     btn.onclick = () => {
       const remoteId = input.value.trim();
-      if (!remoteId) return alert('Enter a valid Peer ID');
+      if (!remoteId) return alert('Please enter a Peer ID');
 
-      const call = peer.call(remoteId, null);
+      if (!localStream) {
+        return alert('Local stream not ready. Please allow microphone access.');
+      }
+
+      const call = peer.call(remoteId, localStream);
+      if (!call) {
+        return alert('Call failed to start.');
+      }
+
+      // 3) When we receive the remote stream, show it
       call.on('stream', stream => {
         videoEl.srcObject = stream;
       });
 
       call.on('error', err => {
-        console.error('Call failed:', err);
-        alert('Could not connect: ' + err.message);
+        console.error('Call error:', err);
+        alert('Connection error: ' + err);
       });
     };
   </script>
