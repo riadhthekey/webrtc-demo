@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>WebRTC Broadcaster</title>
+  <script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+</head>
+<body>
+  <h1>Broadcaster</h1>
+  <video id="vid" autoplay muted playsinline style="width: 80vw; max-width: 600px;"></video>
+  <p>Your Peer ID: <span id="peer-id">...</span></p>
+
+  <script>
+    const peer = new Peer(); // ← This uses the free PeerJS public server
+    const videoEl = document.getElementById('vid');
+    const peerIdEl = document.getElementById('peer-id');
+
+    peer.on('open', id => {
+      peerIdEl.textContent = id;
+      console.log("Your Peer ID:", id);
+    });
+
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
+      .then(stream => {
+        videoEl.srcObject = stream;
+
+        peer.on('call', call => {
+          call.answer(stream);
+          console.log("Answered a call");
+        });
+      })
+      .catch(err => {
+        console.error('Failed to get media:', err);
+        alert('Could not access camera: ' + err.message);
+      });
+  </script>
+</body>
+</html>
