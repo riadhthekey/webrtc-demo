@@ -3,22 +3,26 @@
 <head>
   <meta charset="utf-8">
   <title>WebRTC Viewer</title>
-  <!-- Cache-bust with ?v=1 to force fresh fetch -->
-  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js?v=1"></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js?v=2"></script>
 </head>
 <body>
   <h1>Viewer</h1>
   <input id="peer-id-input" placeholder="Enter Broadcaster Peer ID">
   <button id="connect-btn">Connect</button>
-  <video id="vid" autoplay muted playsinline style="width: 80vw; max-width: 600px;"></video>
+  <!-- Add controls so you can see if it’s playing -->
+  <video id="vid" autoplay muted playsinline controls
+         style="width: 80vw; max-width: 600px; border: 1px solid #333; background: #000;">
+  </video>
+  <p id="info"></p>
 
   <script>
   window.onload = () => {
     if (typeof Peer === 'undefined') {
       return alert('PeerJS didn’t load. Check your script URL.');
     }
-    const peer = new Peer();  
+    const peer = new Peer();
     let localStream;
+    const info = document.getElementById('info');
 
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(stream => {
@@ -32,17 +36,32 @@
 
     document.getElementById('connect-btn').onclick = () => {
       const remoteId = document.getElementById('peer-id-input').value.trim();
+      info.textContent = `Calling ${remoteId}…`;
       if (!remoteId) return alert('Enter a Peer ID.');
-      if (!localStream) return alert('Wait for the mic to be ready.');
+      if (!localStream) return alert('Wait for mic to be ready.');
 
       const call = peer.call(remoteId, localStream);
       if (!call) return alert('Call failed to start.');
 
       call.on('stream', remoteStream => {
-        console.log('[Viewer] Got remote stream');
+        console.log('[Viewer] Got remote stream', remoteStream);
+        // Show number of tracks
+        const vCount = remoteStream.getVideoTracks().length;
+        const aCount = remoteStream.getAudioTracks().length;
+        info.textContent = `Received stream: ${vCount} video track(s), ${aCount} audio track(s)`;
+
+        // Assign to video element
         const video = document.getElementById('vid');
         video.srcObject = remoteStream;
-        video.onloadedmetadata = () => video.play().catch(()=>{});
+        video.onloadedmetadata = () => {
+          video.play().then(() => {
+            console.log('[Viewer] Playback started');
+            info.textContent += ' — playing!';
+          }).catch(e => {
+            console.warn('[Viewer] play() failed:', e);
+            info.textContent += ' — play() blocked.';
+          });
+        };
       });
 
       call.on('error', err => {
