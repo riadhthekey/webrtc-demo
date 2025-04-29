@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <title>WebRTC Viewer</title>
-  <!-- 1) Load PeerJS first -->
-  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <!-- Cache-bust with ?v=1 to force fresh fetch -->
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js?v=1"></script>
 </head>
 <body>
   <h1>Viewer</h1>
@@ -12,40 +12,37 @@
   <button id="connect-btn">Connect</button>
   <video id="vid" autoplay muted playsinline style="width: 80vw; max-width: 600px;"></video>
 
-  <!-- 2) Then your code -->
   <script>
-    console.log('[Viewer] Page loaded, PeerJS version:', Peer ? Peer.prototype.constructor.name : 'none');
-    const peer = new Peer(); // Now Peer will be defined!
+  window.onload = () => {
+    if (typeof Peer === 'undefined') {
+      return alert('PeerJS didn’t load. Check your script URL.');
+    }
+    const peer = new Peer();  
     let localStream;
 
     navigator.mediaDevices.getUserMedia({ audio: true, video: false })
       .then(stream => {
         localStream = stream;
-        console.log('[Viewer] Local audio stream ready:', stream);
+        console.log('[Viewer] Local audio ready');
       })
       .catch(err => {
-        console.error('[Viewer] getUserMedia error:', err);
+        console.error('[Viewer] mic error:', err);
+        alert('Microphone access failed.');
       });
 
     document.getElementById('connect-btn').onclick = () => {
       const remoteId = document.getElementById('peer-id-input').value.trim();
-      console.log('[Viewer] Attempting call to:', remoteId);
-      if (!remoteId) return alert('Please enter a Peer ID');
-      if (!localStream) return alert('Mic not ready.');
+      if (!remoteId) return alert('Enter a Peer ID.');
+      if (!localStream) return alert('Wait for the mic to be ready.');
 
       const call = peer.call(remoteId, localStream);
-      if (!call) {
-        console.error('[Viewer] peer.call() returned:', call);
-        return alert('Call initiation failed.');
-      }
+      if (!call) return alert('Call failed to start.');
 
       call.on('stream', remoteStream => {
-        console.log('[Viewer] Received remote stream:', remoteStream);
-        const videoEl = document.getElementById('vid');
-        videoEl.srcObject = remoteStream;
-        videoEl.onloadedmetadata = () => {
-          videoEl.play().catch(e => console.warn('[Viewer] play() failed:', e));
-        };
+        console.log('[Viewer] Got remote stream');
+        const video = document.getElementById('vid');
+        video.srcObject = remoteStream;
+        video.onloadedmetadata = () => video.play().catch(()=>{});
       });
 
       call.on('error', err => {
@@ -53,6 +50,7 @@
         alert('Connection error: ' + err);
       });
     };
+  };
   </script>
 </body>
 </html>
