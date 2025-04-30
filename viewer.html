@@ -3,70 +3,82 @@
 <head>
   <meta charset="utf-8">
   <title>WebRTC Viewer</title>
-  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js?v=2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/peerjs@1.4.7/dist/peerjs.min.js"></script>
+  <style>
+    #localVid, #vid { 
+      width: 200px; 
+      height: 150px; 
+      border: 1px solid #666; 
+      background: #000; 
+      margin: 5px; 
+    }
+  </style>
 </head>
 <body>
   <h1>Viewer</h1>
   <input id="peer-id-input" placeholder="Enter Broadcaster Peer ID">
   <button id="connect-btn">Connect</button>
-  <!-- Add controls so you can see if it’s playing -->
-  <video id="vid" autoplay muted playsinline controls
-         style="width: 80vw; max-width: 600px; border: 1px solid #333; background: #000;">
-  </video>
+  <div>
+    <h3>Local Preview (should show your camera)</h3>
+    <video id="localVid" autoplay muted playsinline></video>
+  </div>
+  <div>
+    <h3>Remote Stream</h3>
+    <video id="vid" autoplay muted playsinline controls></video>
+  </div>
   <p id="info"></p>
 
   <script>
   window.onload = () => {
     if (typeof Peer === 'undefined') {
-      return alert('PeerJS didn’t load. Check your script URL.');
+      return alert('PeerJS failed to load.');
     }
     const peer = new Peer();
     let localStream;
     const info = document.getElementById('info');
+    const localVid = document.getElementById('localVid');
+    const remoteVid = document.getElementById('vid');
 
-    navigator.mediaDevices.getUserMedia({ audio: true, video: true })
+    // 1) Grab camera + mic
+    navigator.mediaDevices.getUserMedia({ video: true, audio: true })
       .then(stream => {
         localStream = stream;
-        console.log('[Viewer] Local audio ready');
+        // Show local preview
+        localVid.srcObject = stream;
+        const vTracks = stream.getVideoTracks().length;
+        const aTracks = stream.getAudioTracks().length;
+        console.log('[Viewer] Local stream:', vTracks, 'video track(s),', aTracks, 'audio track(s)');
+        info.textContent = `Local: ${vTracks} video, ${aTracks} audio tracks.`;
       })
       .catch(err => {
-        console.error('[Viewer] mic error:', err);
-        alert('Microphone access failed.');
+        console.error('[Viewer] getUserMedia error:', err);
+        alert('Please allow camera AND microphone.');
       });
 
     document.getElementById('connect-btn').onclick = () => {
       const remoteId = document.getElementById('peer-id-input').value.trim();
-      info.textContent = `Calling ${remoteId}…`;
-      if (!remoteId) return alert('Enter a Peer ID.');
-      if (!localStream) return alert('Wait for mic to be ready.');
+      if (!remoteId) return alert('Enter the broadcaster’s Peer ID.');
+      if (!localStream) return alert('Waiting for camera/mic…');
 
+      info.textContent = `Calling ${remoteId}…`;
       const call = peer.call(remoteId, localStream);
-      if (!call) return alert('Call failed to start.');
+      if (!call) return alert('Call failed.');
 
       call.on('stream', remoteStream => {
-        console.log('[Viewer] Got remote stream', remoteStream);
-        // Show number of tracks
         const vCount = remoteStream.getVideoTracks().length;
         const aCount = remoteStream.getAudioTracks().length;
-        info.textContent = `Received stream: ${vCount} video track(s), ${aCount} audio track(s)`;
+        console.log('[Viewer] Remote stream:', vCount, 'video track(s),', aCount, 'audio track(s)');
+        info.textContent = `Received: ${vCount} video, ${aCount} audio tracks.`;
 
-        // Assign to video element
-        const video = document.getElementById('vid');
-        video.srcObject = remoteStream;
-        video.onloadedmetadata = () => {
-          video.play().then(() => {
-            console.log('[Viewer] Playback started');
-            info.textContent += ' — playing!';
-          }).catch(e => {
-            console.warn('[Viewer] play() failed:', e);
-            info.textContent += ' — play() blocked.';
-          });
+        remoteVid.srcObject = remoteStream;
+        remoteVid.onloadedmetadata = () => {
+          remoteVid.play().catch(e => console.warn('remoteVid.play() failed:', e));
         };
       });
 
       call.on('error', err => {
         console.error('[Viewer] call error:', err);
-        alert('Connection error: ' + err);
+        alert('Connection error: ' + err.message);
       });
     };
   };
